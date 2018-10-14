@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+.mainBars rect{
+  shape-rendering: auto;
+  fill-opacity: 0;
+  stroke-opacity: 0;
+}
+.subBars{
+	shape-rendering:crispEdges;
+}
+.edges{
+	stroke:none;
+	fill-opacity:0.5;
+}
+.facilities {
+    height: 350px;
+    width: 960px;
+    margin: 0 auto;
+}
+g rect:hover{
+	stroke-opacity: 0 !important;
+}
+.facilityToolti {
+    font-weight: 700;
+    position : absolute;
+    color : #000000;
+    line-height: 20px;
+    padding: 10px;
+    font-family: FedraSansStd-light;
+    font-size: 15px;
+    z-index: 10;
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 1;
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 1px 2px 0px, rgba(0, 0, 0, 0.1) 0px 2px 4px 0px;
+    border: 1px solid white;
+    background-color: rgba(255, 255, 255, 1);
+    border-radius: 6px;
+    @include lining-numerals;
+}
+
+</style>
+<body>
+<div id="facilities"></div>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script src="http://vizjs.org/viz.v1.3.0.min.js"></script>
+<script>
+
+var data=[['Norway','AL',1,5],
+['Norway','CO',3,4],
+['Norway','CA',5,7],
+['Sweden','AL',3,0],
+['Sweden','CO',5,1],
+['Sweden','CA',8,10],
+['Switzerland','AL',2,13],
+['Switzerland','CO',9,7],
+['France','AL',3,10],
+['France','CO',7,11],
+['France','CA',5,9],
+['Netherlands','AL',4,9],
+['Netherlands','CO',2,6],
+['Netherlands','CA',3,7],
+['Iceland','AL',3,9],
+['Iceland','CA',9,15]
+];
+var color ={'Norway':"#FF91C0", 'Sweden':"#FDAF66",  'Switzerland':"#FFCB66", 'France':"#8CE187", 'Netherlands':"#6CD3A2", 'Iceland':"#73DEE8"};
+
+
+
+
+			 var bp, svg, g,div;
+                         var tooltip = d3.select("body")
+                            .append("div")
+                            .attr('class','facilityTooltip');
+
+                         function redraw(){
+                          if(true){
+                            // Extract the width and height that was computed by CSS.
+                            d3.select("svg").remove();
+                            var screenwidth = window.innerWidth;
+                            var width = (.74 * screenwidth);
+
+                            bp = viz.biPartite()
+                                    .sortPrimary(sort())
+                                    .sortSecondary(sort())
+                                    .data(data)
+                                    .min(50)
+                                    .pad(3)
+                                    .height(230)
+                                    .width(width)
+                                    .orient("horizontal")
+                                    .barSize(30)
+                                    .fill(d=>color[d.primary]);
+
+                            svg = d3.select("#facilities").append("svg").attr("width", width).attr("height", 340);
+                             g = svg.append("g").attr("transform","translate(0,60)");   // bring space top right values
+                             g.call(bp);
+                             g.selectAll(".viz-biPartite-mainBar")
+                                .on("mouseover",mouseover)
+                                .on("mouseout",mouseout)
+                                .on("mousemove", tooltipMouseMove);
+
+                             g.selectAll(".viz-biPartite-mainBar").append("text").attr("class","label")
+                                .attr("x",function(d){
+                                      return(d.part == 'primary'? -5: -5)
+                                 })
+                                .attr("y",function(d){
+                                    return(d.part == 'primary'? -30: 40)
+                                 })
+                                .text(d=>d.key)
+                                .attr("text-anchor",d=>(d.part=="primary"? "start": "start"));
+                          }
+                         }
+
+                          // Draw for the first time to initialize.
+                          redraw();
+
+                          // Redraw based on the new size whenever the browser window is resized.
+                          window.addEventListener("resize", redraw);
+
+
+
+                        function tooltipMouseOver(d){
+                            tooltip.style("visibility", "visible");
+                        }
+                        function tooltipMouseMove(d){
+                            if(d.part === 'primary'){
+                                tooltip.style("visibility", "visible").style("top", (event.pageY-80)+"px").style("left",(event.pageX-70)+"px");
+                            }
+                            if(d.part === 'secondary'){
+                                tooltip.style("visibility", "visible").style("top", (event.pageY+20)+"px").style("left",(event.pageX-70)+"px");
+                            }
+                            tooltip.html(getFacilityName(data,d) + "<br/>"  + $filter('number')(d.value));
+                        }
+                        function tooltipMouseOut(d){
+                            tooltip.style("visibility", "hidden");
+                        }
+
+                        function mouseover(d){
+                           bp.mouseover(d);
+                           tooltip.style("visibility", "visible");
+                            if(d.part == 'primary'){
+                            g.selectAll(".viz-biPartite-mainBar")
+                            .append("text").attr("class","perc")
+                           .attr("x",d=>(d.part=="primary"? -5: -5))
+                           .attr("y",d=>(d.part=="primary"? -50: 60))
+                           .text(function(d){
+                               if(d.part == "secondary" || d.key == this.textContent){
+                                   if(d.percent === 0){
+                                    }else{
+                                        return d3.format("0.0%")(d.percent);
+                                    }
+                           }});
+
+                           //  on hover of primary bars hiding the 0 percent secondary bars text
+                            g.selectAll(".viz-biPartite-mainBar")
+                                .select("text").attr("class","label")
+                                .attr("x",d=>(d.part=="primary"? -5: -5))
+                                .attr("y",d=>(d.part=="primary"? -30: 40))
+                                .style('fill-opacity',function(d){
+                                    if(d.part == "secondary"){
+                                        if(d.percent === 0){
+                                           return 0;
+                                        }
+                             }});
+                            }
+                            if(d.part == 'secondary'){
+                             g.selectAll(".viz-biPartite-mainBar")
+                            .append("text").attr("class","perc")
+                           .attr("x",d=>(d.part=="primary"? -5: 0))
+                           .attr("y",d=>(d.part=="primary"? -50: 60))
+                           .text(function(d){
+                               if(d.part == "primary" || d.key == this.textContent){
+                                   if(d.percent === 0){
+                                   }else{
+                                       return d3.format("0.0%")(d.percent);    //  0.2 % to show 2 points after decimal
+                                   }
+                           }})
+                           .attr("text-anchor",d=>(d.part=="primary"? "start": "start"));
+                            //  on hover of secondary bars hiding the 0 percent primary bars text
+                           g.selectAll(".viz-biPartite-mainBar")
+                                .select("text").attr("class","label")
+                                .style('fill-opacity',function(d){
+                                    if(d.part == "primary"){
+                                        if(d.percent === 0){
+                                           return 0;
+                                        }
+                             }});
+                            }
+                        }
+                        function mouseout(d){
+                           bp.mouseout(d);
+                           tooltip.style("visibility", "hidden");
+                           g.selectAll(".viz-biPartite-mainBar")
+                                .select("text").attr("class","label")
+                                .style('fill-opacity',function(d){
+                                    if(d){
+                                        if(d.percent === 0){
+                                           return 1;
+                                        }
+                             }});
+
+                            g.selectAll(".viz-biPartite-mainBar").select(".perc").remove(".perc");
+                            d3.select(this).select(".perc").remove(".perc");
+                        }
+			function sort(){
+                            var sortOrder = data;
+                            return function(a,b){ return d3.ascending(sortOrder.indexOf(a),sortOrder.indexOf(b)) }
+                        }
+
+
+
+</script>
+</body>
+</html>
